@@ -189,21 +189,21 @@ class STAR:
 
 
     # Alt Hessian
-    #def _loglike(self, params):
-    #    res = self._nls_calculation(
-    #        params,
-    #        self.y,
-    #        self.X,
-    #        self.transition_variables,
-    #        self.transition_functions,
-    #        self.fixed_params
-    #    )
-    #    sigma2 = np.mean(self.resid**2)
-    #    T = len(res)
-    #    return (
-    #        -0.5*T*np.log(2*np.pi)
-    #        -0.5*T*np.log(sigma2)
-    #        -0.5*np.sum(res**2)/sigma2)
+    def _loglike(self, params):
+        res = self._nls_calculation(
+            params,
+            self.y,
+            self.X,
+            self.transition_variables,
+            self.transition_functions,
+            self.fixed_params
+        )
+        sigma2 = np.mean(self.resid**2)
+        T = len(res)
+        return (
+            -0.5*T*np.log(2*np.pi)
+            -0.5*T*np.log(sigma2)
+            -0.5*np.sum(res**2)/sigma2)
     
 
     def fit(self, y, X):
@@ -335,14 +335,15 @@ class STAR:
         self.resid = result.fun
         self.fittedvalues = self.y - self.resid
 
+        H = Hessian(self._loglike)
+        H = H(self.params)
+        self.cov_matrix = np.linalg.pinv(-H)    
+        
         # Alt Hessian
-        #H = Hessian(self._loglike)
-        #H = H(self.params)
-        #self.cov_matrix = np.linalg.pinv(-H)     
-
-        J = result.jac
+        #J = result.jac
         self.scale = np.var(self.resid, ddof=self.df_model)
-        self.cov_matrix = self.scale * np.linalg.pinv(J.T @ J)
+        #self.cov_matrix = self.scale * np.linalg.pinv(J.T @ J)
+        
         self.bse = np.sqrt(np.diag(self.cov_matrix))
 
         eps = 1e-8
@@ -743,5 +744,6 @@ def teravista_test(X, y, threshold_variables, lags, lag_threshold):
                 return 'linear'
 
         test_results['conclusion'] = test_results.apply(conclusions_func, axis=1)
+
 
     return test_results
