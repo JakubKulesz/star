@@ -48,6 +48,7 @@ class STAR:
         self.params = None
         self.param_names = None
 
+    
     @staticmethod
     def transition_function(transition_function, transition_var, gamma, threshold_var):
         """
@@ -74,7 +75,8 @@ class STAR:
             return 1 / (1 + np.exp(-gamma * (transition_var - threshold_var)))
         if transition_function == 'exponential':
             return 1 - np.exp(-gamma * (transition_var - threshold_var)**2)
-                                             
+
+    
     def _generate_transition_variables(self, y, X):
         """
         Creates a DataFrame containing all transition variables as specified
@@ -188,7 +190,6 @@ class STAR:
         return (y - predicted_values).flatten()
 
 
-    # Alt Hessian
     def _loglike(self, params):
         res = self._nls_calculation(
             params,
@@ -339,9 +340,9 @@ class STAR:
         H = H(self.params)
         self.cov_matrix = np.linalg.pinv(-H)    
         
+        self.scale = np.var(self.resid, ddof=self.df_model)
         # Alt Hessian
         #J = result.jac
-        self.scale = np.var(self.resid, ddof=self.df_model)
         #self.cov_matrix = self.scale * np.linalg.pinv(J.T @ J)
         
         self.bse = np.sqrt(np.diag(self.cov_matrix))
@@ -361,8 +362,8 @@ class STAR:
         ss_res = max(np.sum(self.resid**2), 1e-8)
         ss_tot = ((self.y - self.y.mean())**2).sum(axis=0).sum()
         self.rsquared = 1 - (ss_res / ss_tot)
-        self.aic = float(self.n*np.log(ss_res/self.n) + 2*self.df_model)
-        self.bic = float(self.n*np.log(ss_res/self.n) + self.df_model * np.log(self.n))
+        self.aic = float(-2*self._loglike(self.params)/self.n + 2*self.df_model/self.n)
+        self.bic = float(-2*self._loglike(self.params)/self.n + 2*self.df_model*np.log(self.n)/self.n)
 
         self.model_time = time.time()
         self.calc_time = self.model_time - start_time
@@ -745,5 +746,5 @@ def teravista_test(X, y, threshold_variables, lags, lag_threshold):
 
         test_results['conclusion'] = test_results.apply(conclusions_func, axis=1)
 
-
     return test_results
+
