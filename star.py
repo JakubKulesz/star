@@ -207,7 +207,7 @@ class STAR:
             -0.5*np.sum(res**2)/sigma2)
     
 
-    def fit(self, y, X):
+    def fit(self, y, X=None):
         """
         Calbibrates model parameters to the provided dataset.
 
@@ -215,7 +215,7 @@ class STAR:
         ----------
         y : pd.Series or pd.DataFrame
             Dependent variable.
-        X : pd.DataFrame
+        X : pd.DataFrame, default None
             Independent variables.
 
         Returns
@@ -226,10 +226,13 @@ class STAR:
         """    
         
         start_time = time.time()
-
+        
+        if X is None and self.lags == []:
+            raise ValueError("Either X must be provided or at least one lagged dependent variable must be specified in tle 'lags' argument.")
+    
         # Copy input
         y = y.copy()
-        X = X.copy()
+        X = X.copy() if X is not None else pd.DataFrame(index = y.index)
         self.exog_names = X.columns.tolist()
 
         # Extend the dataset of the lagged variables
@@ -426,7 +429,7 @@ class STAR:
         print('=' * 80)
 
 
-    def predict(self, X_new, y_new=None, threshold_new=None, additional_data = False):
+    def predict(self, X_new, y_new=None, threshold_new=None, additional_data=False):
         """
         Predicting new observations.
         
@@ -446,6 +449,12 @@ class STAR:
         -------
         pd.DataFrame or pd.Series
             Predicted values of the dependent variable, optionally with additional columns that contain utilised variables.
+            
+        Notes
+        -----
+        - If the model was fit with `X=None`, then `X_new` is only used for its index, the actual columns in `X_new` are ignored. 
+        - In this case, `X_new` must have a valid index that aligns with `y_new` so that lagged values can be constructed correctly.
+        The content of the columns is not used.
         """
 
         # Copying the input data
@@ -615,7 +624,7 @@ class STAR:
 
 
 
-def teravista_test(X, y, threshold_variables, lags, lag_threshold):
+def teravista_test(y, threshold_variables, X = None, lags = [], lag_threshold = 4):
     """
     Performs a variant of the Teräsvirta test for detecting nonlinearity in regression models
     with multiple threshold (transition) variables.
@@ -625,8 +634,6 @@ def teravista_test(X, y, threshold_variables, lags, lag_threshold):
 
     Parameters
     ----------
-    X : pd.DataFrame
-        Indepentent variables to be included in the model.
     y : pd.DataFrame
         Dependent variable.
     threshold_variables : list of dict
@@ -634,9 +641,11 @@ def teravista_test(X, y, threshold_variables, lags, lag_threshold):
         - 'name': the name of the variable in X, y, or external data,
         - 'type': type of the variable, one of 'dependent', 'independent', 'time', 'external',
         - 'data': additional key, required for 'external' type, a pd.Series or pd.DataFrame.
-    lags : list of int
+    X : pd.DataFrame, optional, default None
+        Indepentent variables to be included in the model.
+    lags : list of int, default []
         List of lag orders of the dependent variable to be included in the exogenous variables.
-    lag_threshold : int
+    lag_threshold : int, default 4
         Maximum number of lags of the threshold variable to be tested.
 
     Returns
@@ -662,6 +671,11 @@ def teravista_test(X, y, threshold_variables, lags, lag_threshold):
         * Otherwise → 'linear'
     """
     
+    if X is None and lags == []:
+        raise ValueError("Either X must be provided or at least one lagged dependent variable must be specified in tle 'lags' argument.")
+
+    X = X.copy() if X is not None else pd.DataFrame(index = y.index)
+
     if lags:
         for l in lags:
             X[f'dependent_L{l}'] = y.shift(l)
@@ -747,4 +761,5 @@ def teravista_test(X, y, threshold_variables, lags, lag_threshold):
         test_results['conclusion'] = test_results.apply(conclusions_func, axis=1)
 
     return test_results
+
 
